@@ -6,8 +6,9 @@
 
 #define UNXPECTED_INPUT 180
 #define UNXPECTED_END_INPUT 181
-
 #define VARIABLE_COUNT 26
+
+#define IS_DEV 0
 
 enum Operator {
     NOT = 3,
@@ -26,7 +27,6 @@ struct Node {
 void error_message(char * message) {
     printf("\x1b[31mERREUR : %s\x1b[0m\n", message);
 }
-
 int precedance(char c) {
     switch (c) {
         case '!':
@@ -48,7 +48,6 @@ int isParenthesis(char c) {
     return c == '(' || c == ')';
 }
 int isVariable(char c) {
-    //TODO fix this to allow uppercase letters
     return (c >= 'a' && c <= 'z');
 }
 
@@ -80,6 +79,9 @@ struct Node * parse_primary(char * expression, int * pos) {
     char c = expression[*pos];
     if (!c) {
         valid_expresssion = 0;
+        if (IS_DEV) {
+            printf("Parse primary, !c condition\n");
+        }
         raise(UNXPECTED_END_INPUT);
     }
 
@@ -95,12 +97,18 @@ struct Node * parse_primary(char * expression, int * pos) {
         struct Node * result = parse_implication(expression, pos);
         if (expression[*pos] != ')') {
             valid_expresssion = 0;
+            if (IS_DEV) {
+                printf("Parse primary, missing )\n");
+            }
             raise(UNXPECTED_INPUT);
         }
         (*pos)++;
         return result;
     } else {
         raise(UNXPECTED_INPUT);
+        if (IS_DEV) {
+            printf("Parse primary, unexpected char %c\n", c);
+        }
         valid_expresssion = 0;
         return &(struct Node){.left = NULL, .right = NULL, .value = '\0'};
     }
@@ -127,7 +135,7 @@ struct Node * parse_and(char * expression, int * pos) {
         node->left = left;
         node->right = right;
         node->value = op;
-        return node;
+        left = node;
     }
     return left;
 }
@@ -142,7 +150,7 @@ struct Node * parse_or(char * expression, int * pos) {
         node->right = right;
         node->value = op;
 
-        return node;
+        left = node;
     }
 
     return left;
@@ -158,7 +166,7 @@ struct Node * parse_implication(char * expression, int * pos) {
         node->left = left;
         node->right = right;
         node->value = op;
-        return node;
+        left = node;
     }
 
     return left;
@@ -167,6 +175,9 @@ struct Node * parse(char * expression, int size, int * pos) {
     struct Node * result = parse_implication(expression, pos);
     if (*pos < size) {
         raise(UNXPECTED_INPUT);
+        if (IS_DEV) {
+            printf("Parse, unexpected char at the end %c (index : %d)\n", expression[*pos], *pos);
+        }
         valid_expresssion = 0;
     }
     return result;
