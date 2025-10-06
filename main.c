@@ -149,15 +149,15 @@ struct Node * parse_or(char * expression, int * pos) {
 
 struct Node * parse_implication(char * expression, int * pos) {
     struct Node * left = parse_or(expression, pos);
-    while (expression[*pos] == '-') {
+    if (expression[*pos] == '-') {
         char op = expression[*pos];
         (*pos)++;
-        struct Node * right = parse_or(expression, pos);
+        struct Node * right = parse_implication(expression, pos);
         struct Node * node = create_node();
         node->left = left;
         node->right = right;
         node->value = op;
-        left = node;
+        return node;
     }
 
     return left;
