@@ -127,7 +127,7 @@ struct Node * parse_and(char * expression, int * pos) {
         node->left = left;
         node->right = right;
         node->value = op;
-        return node;
+        left = node;
     }
     return left;
 }
@@ -141,8 +141,7 @@ struct Node * parse_or(char * expression, int * pos) {
         node->left = left;
         node->right = right;
         node->value = op;
-
-        return node;
+        left = node;
     }
 
     return left;
@@ -158,7 +157,7 @@ struct Node * parse_implication(char * expression, int * pos) {
         node->left = left;
         node->right = right;
         node->value = op;
-        return node;
+        left = node;
     }
 
     return left;

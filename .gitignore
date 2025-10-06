@@ -1,3 +1,4 @@
 *.exe
 cmake-build-debug/
 .idea/
+assert-checker
