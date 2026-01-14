@@ -1,8 +1,7 @@
 mod colors;
-use crate::colors::Color;
-use crate::colors::BoolColor;
+use crate::colors::{BoolColor,Color};
 use std::collections::HashMap;
-
+use std::io::{stdin,stdout,Write};
 
 const variablesCount: u8 = 26;
 
@@ -243,9 +242,17 @@ fn build(expr: &String) -> Result<Node, String> {
 }
 
 
+fn check_components(expr: &String) -> bool {
+    for ch in (*expr).chars() {
+        if !isVariable(ch) && !isOperator(ch) && !isParenthesis(ch) {
+            return false;
+        }
+    }
+    return true;
+}
 fn check_parenthesis(expr: &String) -> bool {
-    let mut count: isize = 0;
-    
+    let mut count: usize = 0;
+
     for ch in (*expr).chars() {
         if ch == '(' {
             count+=1;
@@ -257,21 +264,59 @@ fn check_parenthesis(expr: &String) -> bool {
 
     return count == 0;
 }
-fn findVariables(expr: &String) -> [bool; variablesCount as usize] {
+fn find_variables(expr: &String, count: &mut u8) -> [bool; variablesCount as usize] {
     let mut result: [bool; variablesCount as usize] = [false; variablesCount as usize];
+    *count = 0;
 
     for ch in (*expr).bytes() {
         if 97 <= ch && ch <= 122 {
-            let val = ch - ('a' as u8); 
+            let val  = ch - ('a' as u8);
+            if !result[val as usize] {
+                *count += 1;
+            }
             result[val as usize] = true;
         }
     }
 
     return result;
 }
+fn decimal_to_binary(amount: &u64, max: u8) -> Vec<bool> {
+    let mut vector = Vec::new();
+    let mut copy = *amount;
 
+    let mut i: u8 = 0;
+    while i < max {
+        vector.push(copy & 1 == 1);
+        copy = copy >> 1;
+        i += 1;
+    };
+    return vector;
+}
+fn create_hashmap(amount: &u64, variables: [bool; variablesCount as usize], count: &u8) -> HashMap<char, bool> {
+    let vector = decimal_to_binary(amount, *count);
+    let mut map = HashMap::new();
 
-fn evaluateInduction(node: Node, map: &HashMap<char, bool>) -> Option<bool> {
+    let mut i = 0;
+    let mut index = 0;
+
+    while i < variablesCount {
+        map.insert((97 + i) as char, if !variables[i as usize] {false} else {
+            let val = vector[index];
+            index+=1;
+            val
+        });
+
+        i+=1;
+    }
+    return map;
+}
+fn display_map(map: HashMap<char, bool>) {
+    for (key, value) in map {
+        println!("{}: {}", key, value.colorate());
+    }
+}
+
+fn evaluateInduction(node: &Node, map: &HashMap<char, bool>) -> Option<bool> {
     if isVariable(node.value) {
         match (*map).get(&node.value) {
             Some(b) => return Some(*b),
@@ -279,26 +324,18 @@ fn evaluateInduction(node: Node, map: &HashMap<char, bool>) -> Option<bool> {
         }
     } else {
         if node.value == '!' {
-            let right: Node;
-            match node.right {
-                Some(n) => right = *n,
-                None => return None
-            }
-            match evaluateInduction(right, map) {
-                Some(b) => return Some(!b),
+            match &node.right {
+                Some(n) => return Some(!evaluateInduction(n, map)?),
                 None => return None
             }
         }
 
-        let left: Node;
-        let right: Node;
-
-        match node.left {
-            Some(n) => left = *n,
+        let left = match &node.left {
+            Some(n) => n,
             None => return None
         };
-        match node.right {
-            Some(n) => right = *n,
+        let right = match &node.right {
+            Some(n) => n,
             None => return None
         };
 
@@ -323,7 +360,105 @@ fn evaluateInduction(node: Node, map: &HashMap<char, bool>) -> Option<bool> {
     }
 }
 
+fn get_expression(reference: &mut String) -> bool {
+    match stdin().read_line(reference) {
+        Ok(_) => return true,
+        Err(_) => return false
+    }
+}
+fn check_expression(expression: &String) -> bool {
+    return check_parenthesis(expression) && check_components(expression);
+}
+
+fn display_header(vars: [bool; variablesCount as usize]) {
+    let mut i = 0;
+    let mut c = 0;
+    while i < variablesCount {
+        if vars[i as usize] {
+            print!(" \x1b[93m{}\x1b[0m │", (97 + i) as char);
+            c+=1;
+        }
+        i+=1;
+    }
+    println!("    {}    ", "result".to_string().lightBlue());
+
+    i = 0;
+    while i < c * 4 + (8 + 7) {
+        print!("{}", if i % 4 == 3 && i > 0 && i <= c * 4 {"┼"} else {"─"});
+        i+=1;
+    }
+    print!("\n");
+}
+fn display_result(result: bool, vars: [bool; variablesCount as usize], map: HashMap<char, bool>) -> Option<()> {
+    let mut underline = String::from("");
+
+    let mut i = 0;
+    while i < variablesCount {
+        if vars[i as usize] {
+            let val: bool = *(map.get(&((97 + i) as char)))?;
+            print!(" \x1b[{}m{}\x1b[0m │", 31 + (val as u8), val as u8);
+        }
+        i+=1;
+    }
+    println!("      \x1b[{}m{}\x1b[0m", 31 + (result as u8), result as u8);
+
+    return Some(());
+}
+
+
+fn solve(expr: &String, tree: &Node) {
+    let mut vars_count = 0;
+    let vars = find_variables(expr, &mut vars_count);
+
+    display_header(vars);
+
+    let mut i: u64 = 0;
+    while i < 2_u32.pow(vars_count.into()).into() {
+        let map = create_hashmap(&i, vars, &(vars_count).into());
+        let result: bool;
+        match evaluateInduction(tree, &map) {
+            Some(r) => result = r,
+            None => {
+                println!("{}", "Something went wrong".to_string().red());
+                return;
+            }
+        }
+
+        display_result(result, vars, map);
+        i+=1;
+    }
+}
+
 fn main() {
+    print!("Enter the expression: ");
+    stdout().flush().unwrap();
+
+    let mut expression = String::from("");
+    let success = get_expression(&mut expression);
+
+    if !success {
+        println!("{}", "The operation failed".to_string().red());
+        return;
+    }
+    expression = expression.trim_end().to_string();
+
+    if !check_expression(&expression) {
+        println!("Your expression {} is not valid", expression.lightRed());
+        return;
+    }
+
+    let tree: Node;
+    match build(&expression) {
+        Ok(n) => tree = n,
+        Err(_) => {
+            return println!("Your expression {} cannot be parsed", expression.lightRed());
+        }
+    }
+
+    solve(&expression, &tree);
+}
+
+fn _main() {
     let expression = String::from("a&(b|c)");
 
     let tree: Node;
@@ -340,7 +475,7 @@ fn main() {
     testMap.insert('b', true);
     testMap.insert('c', true);
 
-    match evaluateInduction(tree, &testMap) {
+    match evaluateInduction(&tree, &testMap) {
         Some(b) => println!("Result is {}", b.colorate()),
         None => println!("Fail")
     }
