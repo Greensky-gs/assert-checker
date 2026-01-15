@@ -1,9 +1,13 @@
-mod colors;
-use crate::colors::{BoolColor,Color};
-use std::collections::HashMap;
-use std::io::{stdin,stdout,Write};
+extern crate rustyline;
 
-const variablesCount: u8 = 26;
+mod colors;
+use crate::colors::{Color};
+use std::collections::HashMap;
+use std::io::{stdout,Write};
+use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
+
+const VARIABLES_COUNT: u8 = 26;
 
 struct Node {
     value: char,
@@ -11,6 +15,7 @@ struct Node {
     right: Option<Box<Node>>
 }
 
+#[allow(dead_code)]
 impl Node {
     fn new(val: char) -> Node {
         return Node {
@@ -52,23 +57,13 @@ impl Node {
     }
 }
 
-fn precedance(c: char) -> i8 {
-    return match c {
-        '!' => 3,
-        '&' => 2,
-        '|' => 1,
-        '>' => 0,
-        _ => -1
-    };
-}
-
-fn isOperator(c: char) -> bool {
+fn is_operator(c: char) -> bool {
     return c == '|' || c == '&' || c == '>' || c == '!';
 }
-fn isParenthesis(c: char) -> bool {
+fn is_parenthesis(c: char) -> bool {
     return c == '(' || c == ')';
 }
-fn isVariable(c: char) -> bool {
+fn is_variable(c: char) -> bool {
     return ('a' as usize) <= (c as usize) && (c as usize) <= ('z' as usize);
 }
 fn error_message(message: String) {
@@ -84,7 +79,7 @@ fn parse_primary(expr: &String, pos: &mut usize) -> Result<Node, String> {
         None => {error_message("no char found".to_string()); return Err::<Node, String>("error".to_string()) }
     }
 
-    if isVariable(c) {
+    if is_variable(c) {
         (*pos)+=1;
         return Ok(Node::new(c));
     } else if c == '(' {
@@ -244,7 +239,7 @@ fn build(expr: &String) -> Result<Node, String> {
 
 fn check_components(expr: &String) -> bool {
     for ch in (*expr).chars() {
-        if !isVariable(ch) && !isOperator(ch) && !isParenthesis(ch) {
+        if !is_variable(ch) && !is_operator(ch) && !is_parenthesis(ch) {
             return false;
         }
     }
@@ -264,8 +259,8 @@ fn check_parenthesis(expr: &String) -> bool {
 
     return count == 0;
 }
-fn find_variables(expr: &String, count: &mut u8) -> [bool; variablesCount as usize] {
-    let mut result: [bool; variablesCount as usize] = [false; variablesCount as usize];
+fn find_variables(expr: &String, count: &mut u8) -> [bool; VARIABLES_COUNT as usize] {
+    let mut result: [bool; VARIABLES_COUNT as usize] = [false; VARIABLES_COUNT as usize];
     *count = 0;
 
     for ch in (*expr).bytes() {
@@ -292,14 +287,14 @@ fn decimal_to_binary(amount: &u64, max: u8) -> Vec<bool> {
     };
     return vector;
 }
-fn create_hashmap(amount: &u64, variables: [bool; variablesCount as usize], count: &u8) -> HashMap<char, bool> {
+fn create_hashmap(amount: &u64, variables: [bool; VARIABLES_COUNT as usize], count: &u8) -> HashMap<char, bool> {
     let vector = decimal_to_binary(amount, *count);
     let mut map = HashMap::new();
 
     let mut i = 0;
     let mut index = 0;
 
-    while i < variablesCount {
+    while i < VARIABLES_COUNT {
         map.insert((97 + i) as char, if !variables[i as usize] {false} else {
             let val = vector[index];
             index+=1;
@@ -310,14 +305,9 @@ fn create_hashmap(amount: &u64, variables: [bool; variablesCount as usize], coun
     }
     return map;
 }
-fn display_map(map: HashMap<char, bool>) {
-    for (key, value) in map {
-        println!("{}: {}", key, value.colorate());
-    }
-}
 
-fn evaluateInduction(node: &Node, map: &HashMap<char, bool>) -> Option<bool> {
-    if isVariable(node.value) {
+fn evaluate_induction(node: &Node, map: &HashMap<char, bool>) -> Option<bool> {
+    if is_variable(node.value) {
         match (*map).get(&node.value) {
             Some(b) => return Some(*b),
             None => return None
@@ -325,7 +315,7 @@ fn evaluateInduction(node: &Node, map: &HashMap<char, bool>) -> Option<bool> {
     } else {
         if node.value == '!' {
             match &node.right {
-                Some(n) => return Some(!evaluateInduction(n, map)?),
+                Some(n) => return Some(!evaluate_induction(n, map)?),
                 None => return None
             }
         }
@@ -339,48 +329,42 @@ fn evaluateInduction(node: &Node, map: &HashMap<char, bool>) -> Option<bool> {
             None => return None
         };
 
-        let leftOperand: bool;
-        let rightOperand: bool;
+        let left_operand: bool;
+        let right_operand: bool;
 
-        match evaluateInduction(left, map) {
-            Some(b) => leftOperand = b,
+        match evaluate_induction(left, map) {
+            Some(b) => left_operand = b,
             None => return None
         };
-        match evaluateInduction(right, map) {
-            Some(b) => rightOperand = b,
+        match evaluate_induction(right, map) {
+            Some(b) => right_operand = b,
             None => return None
         };
 
         match node.value {
-            '&' => return Some(leftOperand && rightOperand),
-            '|' => return Some(leftOperand || rightOperand),
-            '>' => return Some(!leftOperand || rightOperand),
+            '&' => return Some(left_operand && right_operand),
+            '|' => return Some(left_operand || right_operand),
+            '>' => return Some(!left_operand || right_operand),
             _ => return None
         }
     }
 }
 
-fn get_expression(reference: &mut String) -> bool {
-    match stdin().read_line(reference) {
-        Ok(_) => return true,
-        Err(_) => return false
-    }
-}
 fn check_expression(expression: &String) -> bool {
     return check_parenthesis(expression) && check_components(expression);
 }
 
-fn display_header(vars: [bool; variablesCount as usize]) {
+fn display_header(vars: [bool; VARIABLES_COUNT as usize]) {
     let mut i = 0;
     let mut c = 0;
-    while i < variablesCount {
+    while i < VARIABLES_COUNT {
         if vars[i as usize] {
             print!(" \x1b[93m{}\x1b[0m │", (97 + i) as char);
             c+=1;
         }
         i+=1;
     }
-    println!("    {}    ", "result".to_string().lightBlue());
+    println!("    {}    ", "result".to_string().light_blue());
 
     i = 0;
     while i < c * 4 + (8 + 7) {
@@ -389,11 +373,9 @@ fn display_header(vars: [bool; variablesCount as usize]) {
     }
     print!("\n");
 }
-fn display_result(result: bool, vars: [bool; variablesCount as usize], map: HashMap<char, bool>) -> Option<()> {
-    let mut underline = String::from("");
-
+fn display_result(result: bool, vars: [bool; VARIABLES_COUNT as usize], map: HashMap<char, bool>) -> Option<()> {
     let mut i = 0;
-    while i < variablesCount {
+    while i < VARIABLES_COUNT {
         if vars[i as usize] {
             let val: bool = *(map.get(&((97 + i) as char)))?;
             print!(" \x1b[{}m{}\x1b[0m │", 31 + (val as u8), val as u8);
@@ -416,7 +398,7 @@ fn solve(expr: &String, tree: &Node) {
     while i < 2_u32.pow(vars_count.into()).into() {
         let map = create_hashmap(&i, vars, &(vars_count).into());
         let result: bool;
-        match evaluateInduction(tree, &map) {
+        match evaluate_induction(tree, &map) {
             Some(r) => result = r,
             None => {
                 println!("{}", "Something went wrong".to_string().red());
@@ -429,21 +411,43 @@ fn solve(expr: &String, tree: &Node) {
     }
 }
 
+fn prompt_expression() -> Option<String> {
+    let mut rl = DefaultEditor::new().unwrap();
+    let _ = rl.load_history("history.txt");
+
+    match rl.readline("Enter expression here: ") {
+        Ok(line) => {
+            let _ = rl.add_history_entry(line.as_str());
+            let _ = rl.save_history("history.txt");
+            return Some(line.to_string());
+        },
+        Err(ReadlineError::Interrupted) => {
+            println!("Canceled");
+            return None;
+        },
+        Err(ReadlineError::Eof) => {
+            println!("End of file");
+            return None;
+        },
+        Err(err) => {
+            println!("Error : {:?}", err);
+            return None;
+        }
+    }
+}
+
 fn main() {
     print!("Enter the expression: ");
     stdout().flush().unwrap();
 
-    let mut expression = String::from("");
-    let success = get_expression(&mut expression);
-
-    if !success {
-        println!("{}", "The operation failed".to_string().red());
-        return;
+    let expression;
+    match prompt_expression() {
+        Some(exp) => expression = exp.clone(),
+        None => return println!("{}", "Operation failed".to_string().red())
     }
-    expression = expression.trim_end().to_string();
 
     if !check_expression(&expression) {
-        println!("Your expression {} is not valid", expression.lightRed());
+        println!("Your expression {} is not valid", expression.light_red());
         return;
     }
 
@@ -451,32 +455,9 @@ fn main() {
     match build(&expression) {
         Ok(n) => tree = n,
         Err(_) => {
-            return println!("Your expression {} cannot be parsed", expression.lightRed());
+            return println!("Your expression {} cannot be parsed", expression.light_red());
         }
     }
 
     solve(&expression, &tree);
-}
-
-fn _main() {
-    let expression = String::from("a&(b|c)");
-
-    let tree: Node;
-    match build(&expression) {
-        Ok(n) => tree = n,
-        Err(e) => return error_message(e)
-    }
-
-    println!("Parsed expression : {}", tree.infix().lightRed());
-
-    let mut testMap = HashMap::new();
-
-    testMap.insert('a', false);
-    testMap.insert('b', true);
-    testMap.insert('c', true);
-
-    match evaluateInduction(&tree, &testMap) {
-        Some(b) => println!("Result is {}", b.colorate()),
-        None => println!("Fail")
-    }
 }

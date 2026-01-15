@@ -1,4 +1,4 @@
-
+#[allow(dead_code)]
 pub trait Color {
     fn chalk(&self, color: u16) -> String;
 
@@ -9,13 +9,14 @@ pub trait Color {
     fn yellow(&self) -> String;
     fn cyan(&self) -> String;
 
-    fn lightRed(&self) -> String;
-    fn lightBlue(&self) -> String;
-    fn lightGreen(&self) -> String;
-    fn lightPurple(&self) -> String;
-    fn lightYellow(&self) -> String;
-    fn lightCyan(&self) -> String;
+    fn light_red(&self) -> String;
+    fn light_blue(&self) -> String;
+    fn light_green(&self) -> String;
+    fn light_purple(&self) -> String;
+    fn light_yellow(&self) -> String;
+    fn light_cyan(&self) -> String;
 }
+#[allow(dead_code)]
 pub trait BoolColor {
     fn colorate(&self) -> String;
 }
@@ -44,22 +45,22 @@ impl Color for String {
     }
 
 
-    fn lightRed(&self) -> String {
+    fn light_red(&self) -> String {
         return self.chalk(91);
     }
-    fn lightBlue(&self) -> String {
+    fn light_blue(&self) -> String {
         return self.chalk(94);
     }
-    fn lightGreen(&self) -> String {
+    fn light_green(&self) -> String {
         return self.chalk(92);
     }
-    fn lightPurple(&self) -> String {
+    fn light_purple(&self) -> String {
         return self.chalk(95);
     }
-    fn lightYellow(&self) -> String {
+    fn light_yellow(&self) -> String {
         return self.chalk(93);
     }
-    fn lightCyan(&self) -> String {
+    fn light_cyan(&self) -> String {
         return self.chalk(96);
     }
 }
