@@ -437,27 +437,38 @@ fn prompt_expression() -> Option<String> {
 }
 
 fn main() {
+    loop {
+        if !main_call() {
+            println!("Aborting");
+            break;
+        }
+    };
+}
+
+fn main_call() -> bool {
     print!("Enter the expression: ");
     stdout().flush().unwrap();
 
     let expression;
     match prompt_expression() {
         Some(exp) => expression = exp.clone(),
-        None => return println!("{}", "Operation failed".to_string().red())
+        None => { println!("{}", "Operation failed".to_string().red()); return false }
     }
 
     if !check_expression(&expression) {
         println!("Your expression {} is not valid", expression.light_red());
-        return;
+        return true;
     }
 
     let tree: Node;
     match build(&expression) {
         Ok(n) => tree = n,
         Err(_) => {
-            return println!("Your expression {} cannot be parsed", expression.light_red());
+            println!("Your expression {} cannot be parsed", expression.light_red());
+            return true;
         }
     }
 
     solve(&expression, &tree);
+    return true;
 }
