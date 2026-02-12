@@ -1,400 +1,378 @@
-#include <math.h>
-#include <signal.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <signal.h>
 #include <string.h>
 
-#define UNXPECTED_INPUT 180
-#define UNXPECTED_END_INPUT 181
-#define VARIABLE_COUNT 26
-
-#define IS_DEV 0
-
-enum Operator {
-    NOT = 3,
-    AND = 2,
-    OR = 1,
-    IMPLIES = 0
-};
+#define VARIABLES_COUNT 26
 
 struct Node {
-    struct Node* left;
-    struct Node* right;
-    char value;
+	char value;
+	struct Node * left;
+	struct Node * right;
 };
+typedef struct Node * tNode;
 
-// Tools
-void error_message(char * message) {
-    printf("\x1b[31mERREUR : %s\x1b[0m\n", message);
+tNode create_node(char value) {
+	tNode node;
+	if ((node = malloc(sizeof(struct Node))) == NULL) return NULL;
+	node->value = value;
+	node->left = NULL;
+	node->right = NULL;
+	return node;
 }
-int precedance(char c) {
-    switch (c) {
-        case '!':
-            return NOT;
-        case '&':
-            return AND;
-        case '|':
-            return OR;
-        case '>':
-            return IMPLIES;
-        default:
-            return -1;
-    }
-}
-int isOperator(char c) {
-    return c == '!' || c == '&' || c == '|' || c == '-';
-}
-int isParenthesis(char c) {
-    return c == '(' || c == ')';
-}
-int isVariable(char c) {
-    return (c >= 'a' && c <= 'z');
+void destroy_node(tNode * p) {
+	if ((*p)->left != NULL) destroy_node(&(*p)->left);
+	if ((*p)->right != NULL) destroy_node(&(*p)->right);
+
+	free(*p);
+	*p=NULL;
 }
 
-struct Node * parse_implication(char * expression, int * pos);
-
-
-// Main
-// Variables
-int valid_expresssion = 1;
-// Main tools
-
-struct Node* create_node() {
-    struct Node* node = malloc(sizeof(struct Node));
-
-    node->left = NULL;
-    node->right = NULL;
-    node->value = '\0';
-
-    return node;
+void display_infix(tNode node, int * count) {
+	if (node->left != NULL) display_infix(node->left, count);
+	printf("%c", node->value);
+	if (count != NULL) (*count)++;
+	if (node->right != NULL) display_infix(node->right, count);
 }
-void free_tree(struct Node* node) {
-    if (node == NULL) return;
-    free_tree(node->left);
-    free_tree(node->right);
-    free(node);
+void display_full(tNode node) {
+	display_infix(node, NULL);
+	printf("\n");
 }
 
-struct Node * parse_primary(char * expression, int * pos) {
-    char c = expression[*pos];
-    if (!c) {
-        valid_expresssion = 0;
-        if (IS_DEV) {
-            printf("Parse primary, !c condition\n");
-        }
-        raise(UNXPECTED_END_INPUT);
-    }
-
-    if (isVariable(c)) {
-        (*pos)++;
-        struct Node* node = create_node();
-        node->value = c;
-        node->left = NULL;
-        node->right = NULL;
-        return node;
-    } else if (c == '(') {
-        (*pos)++;
-        struct Node * result = parse_implication(expression, pos);
-        if (expression[*pos] != ')') {
-            valid_expresssion = 0;
-            if (IS_DEV) {
-                printf("Parse primary, missing )\n");
-            }
-            raise(UNXPECTED_INPUT);
-        }
-        (*pos)++;
-        return result;
-    } else {
-        raise(UNXPECTED_INPUT);
-        if (IS_DEV) {
-            printf("Parse primary, unexpected char %c\n", c);
-        }
-        valid_expresssion = 0;
-        return &(struct Node){.left = NULL, .right = NULL, .value = '\0'};
-    }
+int is_variable(char v) {
+	return 97 <= v && v <= 122;
 }
-struct Node* parse_not(char * expression, int * pos) {
-    if (expression[*pos] == '!') {
-        (*pos)++;
-        struct Node * operand = parse_not(expression, pos);
-        struct Node * node = create_node();
-        node->left = NULL;
-        node->right = operand;
-        node->value = '!';
-        return node;
-    }
-    return parse_primary(expression, pos);
+int is_operator(char v) {
+	return v == '&' || v == '|' || v == '!' || v == '-';
 }
-struct Node * parse_and(char * expression, int * pos) {
-    struct Node * left = parse_not(expression, pos);
-    while (expression[*pos] == '&') {
-        char op = expression[*pos];
-        (*pos)++;
-        struct Node * right = parse_not(expression, pos);
-        struct Node * node = create_node();
-        node->left = left;
-        node->right = right;
-        node->value = op;
-        left = node;
-    }
-    return left;
+int is_parenthesis(char v) {
+	return v == '(' || v == ')';
 }
-struct Node * parse_or(char * expression, int * pos) {
-    struct Node * left = parse_and(expression, pos);
-    while (expression[*pos] == '|') {
-        char op = expression[*pos];
-        (*pos)++;
-        struct Node * right = parse_and(expression, pos);
-        struct Node * node = create_node();
-        node->left = left;
-        node->right = right;
-        node->value = op;
-
-        left = node;
-    }
-
-    return left;
+int is_valid(char v) {
+	return is_variable(v) || is_operator(v) || is_parenthesis(v);
 }
 
-struct Node * parse_implication(char * expression, int * pos) {
-    struct Node * left = parse_or(expression, pos);
-    while (expression[*pos] == '-') {
-        char op = expression[*pos];
-        (*pos)++;
-        struct Node * right = parse_or(expression, pos);
-        struct Node * node = create_node();
-        node->left = left;
-        node->right = right;
-        node->value = op;
-        left = node;
-    }
+int is_tree_valid(tNode tree) {
+	if (tree->right == NULL && tree->left == NULL && !is_variable(tree->value)) {
+		return 0;
+	}
+	if (tree->left != NULL && tree->right == NULL && !is_operator(tree->value)) {
+		return 0;
+	}
+	if (tree->left != NULL && tree->right == NULL && tree->value != '!') return 0;
+	int left = tree->left == NULL ? 1 : is_tree_valid(tree->left);
+	int right = tree->right == NULL ? 1 : is_tree_valid(tree->right);
 
-    return left;
-}
-struct Node * parse(char * expression, int size, int * pos) {
-    struct Node * result = parse_implication(expression, pos);
-    if (*pos < size) {
-        raise(UNXPECTED_INPUT);
-        if (IS_DEV) {
-            printf("Parse, unexpected char at the end %c (index : %d)\n", expression[*pos], *pos);
-        }
-        valid_expresssion = 0;
-    }
-    return result;
+	return left && right;	
 }
 
-void decimalToBinary(int num, char binary[]) {
-    if (num == 0) {
-        for (int i = 0; i < VARIABLE_COUNT; i++) {
-            binary[i] = 'f';
-        }
-        return;
-    }
-
-    int i = 0;
-
-    while (num > 0) {
-        binary[i] = (num & 1) == 1 ? 'v' : 'f';
-        num = num >> 1;
-        i++;
-    }
+int strsize(char * input) {
+	int i = 0;
+	while (input[i++] != 0) {};
+	return i - 1;
 }
 
+int valid_expression = 1;
+tNode parse_implication(char *, int *);
 
-// Main functions
-int build(char * expression, struct Node * node, int size) {
-    int pos = 0;
-    struct Node * res = parse(expression, size, &pos);
+tNode parse_primary(char * expression, int * pos) {
+	char c = expression[*pos];
+	if (!c) {
+		valid_expression = 0;
+		return NULL;
+	}
 
-    *node = *res;
-    return 0;
+	if (is_variable(c)) {
+		(*pos)++;
+		return create_node(c);
+	} else if (c == '(') {
+		(*pos)++;
+		tNode res = parse_implication(expression, pos);
+		if (expression[*pos] != ')') {
+			valid_expression = 0;
+			return NULL;
+		}
+		(*pos)++;
+		return res;
+	} else {
+		valid_expression = 0;
+		return create_node(0);
+	}
 }
 
-int findVariables(const char * expression, int size, char * variables, int * count) {
-    int i = 0;
-    *count = 0;
-    while (i < size && *count < VARIABLE_COUNT) {
-        char c = expression[i];
-        if (isVariable(c)) {
-            if (variables[c - 'a'] == '-') {
-                variables[c - 'a'] = c;
-                (*count)++;
-            }
-        }
-        i++;
-    }
+tNode parse_not(char * expression, int * pos) {
+	while (expression[*pos] == '!') {
+		char op = expression[*pos];
+		(*pos)++;
+		tNode operand = parse_primary(expression, pos);
+		tNode node = create_node('!');
+		node->right = operand;
+		return node;
+	}
 
-    return 0;
+	return parse_primary(expression, pos);
 }
 
-void removeSpaces(const char * expression, const int * size, char * newExpression, int * newSize) {
-    int i = 0;
-    int j = 0;
-    while (i < *size) {
-        if (expression[i] != ' ') {
-            newExpression[j] = expression[i];
-            j++;
-        }
-        i++;
-    }
+tNode parse_and(char * expression, int * pos) {
+	tNode left = parse_not(expression, pos);
+	while (expression[*pos] == '&') {
+		char op = expression[*pos];
+		(*pos)++;
+		tNode right = parse_not(expression, pos);
+		tNode node = create_node(op);
+		node->left = left;
+		node->right = right;
+		left = node;
+	}
 
-    *newSize = j;
-}
-int Cvalue(const char var, const char * variables, const char * values) {
-    int valuesBefore = 0;
-    for (int i = 0; i < var - 'a'; i++) {
-        if (variables[i] != '-') {
-            valuesBefore++;
-        }
-    }
-
-    return values[valuesBefore] == 'v';
-}
-char * colorateChar(char c) {
-    return c == 'v' ? "\033[0;32m1\033[0m" : "\033[0;31m0\033[0m";
-}
-char * colorateInt(int c) {
-    return c ? "\033[0;32m1\033[0m" : "\033[0;31m0\033[0m";
+	return left;
 }
 
-int evaluateInduction(struct Node * node, char * variables, char * model) {
-    if (isVariable(node->value)) {
-        return Cvalue(node->value, variables, model);
-    } else {
-        if (node->value == '!') {
-            return !evaluateInduction(node->right, variables, model);
-        }
-        int left = evaluateInduction(node->left, variables, model);
-        int right = evaluateInduction(node->right, variables, model);
+tNode parse_or(char * expression, int * pos) {
+	tNode left = parse_and(expression, pos);
+	while (expression[*pos] == '|') {
+		char op = expression[*pos];
+		(*pos)++;
+		tNode right = parse_and(expression, pos);
+		tNode node = create_node(op);
+		node->left = left;
+		node->right = right;
+		left = node;
+	}
 
-        switch (node->value) {
-            case '&':
-                return left && right;
-            case '|':
-                return left || right;
-            case '-':
-                return !left || right;
-            default:
-                return -1;
-        }
-    }
+	return left;
 }
 
-int evaluate(struct Node * node, char * variables, int varCount, char * model) {
-    for (int i = 0; i < varCount; i++) {
-        printf(" %s |", colorateChar(model[i]));
-        // printf(" %c |", model[i]);
-    }
+tNode parse_implication(char * expression, int * pos) {
+	tNode left = parse_or(expression, pos);
+	while (expression[*pos] == '-') {
+		char op = expression[*pos];
+		(*pos)++;
+		tNode right = parse_or(expression, pos);
+		tNode node = create_node(op);
+		node->left = left;
+		node->right = right;
+		left = node;
+	}
 
-    int result = evaluateInduction(node, variables, model);
-    printf(" %s\n", colorateInt(result));
-
-    return result;
+	return left;
 }
 
-void truth_table(struct Node * node, char expression[], int size, char * variables, int varCount) {
-    for (int i = 0; i < VARIABLE_COUNT; i++) {
-        if (variables[i] != '-') {
-            printf(" \x1b[94m%c\x1b[0m |", variables[i]);
-        }
-    }
-    printf("  %s\n", expression);
-    for (int i = 0; i < varCount * 4 + size + 2; i++) {
-        if (i > 0 && i <= varCount * 4 && i % 4 == 3) {
-            printf("|");
-        } else {
-            printf("-");
-        }
-    }
-    printf("\n");
+tNode parse_expression(char * expression, int size) {
+	int start = 0;
+	tNode result = parse_implication(expression, &start);
 
-    int total = pow(2, varCount);
-    int valid_models = 0;
+	if (start < size) {
+		valid_expression = 0;
+	}
+	return result;
+}
+int valid_input(char * expr) {
+	int p = 0;
+	while (expr[p++] != 0) {
+		if (!is_valid(expr[p - 1])) return 0;
+	}
 
-    for (int i = 0; i < total; i++) {
-        char binary[VARIABLE_COUNT + 1];
-        decimalToBinary(i, binary);
-
-        int value = evaluate(node, variables, varCount, binary);
-        if (value) {
-            valid_models++;
-        }
-    }
-
-    int satisfiable = valid_models > 0;
-    int valid = valid_models == total;
-
-    printf("Votre assertion est \x1b[%dm%s\x1b[0m et \x1b[%dm%s\x1b[0m.\n", satisfiable ? 32 : 31, satisfiable ? "satisfiable" : "insatifiable", valid ? 32 : 31, valid ? "valide" : "invalide");
+	return 1;
 }
 
-int check_parenthesis(const char * expression, const int size) {
-    int count = 0;
-    int i = 0;
+char * get_used_variables(char * expression, int size, int * found) {
+	char * arr;
+	if ((arr = calloc(VARIABLES_COUNT, sizeof(char))) == NULL) {
+		perror("Cannot allocate variables array");
+		return NULL;
+	}
+	*found = 0;
 
-    while (i < size && count >= 0) {
-        if (expression[i] == '(') {
-            count++;
-        }
-        if (expression[i] == ')') {
-            count--;
-        }
-        i++;
-    }
+	int i = 0;
+	while (i++ < size) {
+		char c = expression[i - 1];
+		if (is_variable(c = expression[i - 1])) {
+			arr[c - 97] = 1;
+			(*found)++;
+		}
+	}
 
-    return count == 0;
+	return arr;
 }
 
+int evaluate_induction(tNode tree, char * model) {
+	if (is_variable(tree->value)) {
+		return (model[tree->value - 97] == 1);
+	} else {
+		if (tree->value == '!') return !evaluate_induction(tree->right, model);
+		int left = evaluate_induction(tree->left, model);
+
+		if (tree->value == '|') {
+			if (left) return 1;
+			return evaluate_induction(tree->right, model);
+		}
+		if (tree->value == '&') {
+			if (!left) return 0;
+			return evaluate_induction(tree->right, model);
+		}
+		if (tree->value == '-') {
+			if (!left) return 1;
+			return evaluate_induction(tree->right, model);
+		}
+	}
+}
+
+char * create_model(char * variables, int base) {
+	char * modelisation;
+	if ((modelisation = calloc(VARIABLES_COUNT, sizeof(char))) == NULL) return NULL;
+
+	int i = 0;
+	while (i++ < VARIABLES_COUNT) {
+		if (variables[i - 1]) {
+			modelisation[i - 1] = base & 1;
+			base >>=1;
+		}
+	}
+
+	return modelisation;
+}
+
+void print_header(tNode tree, int vars, char * varmodel) {
+	int i = 0;
+	while (i < VARIABLES_COUNT) {
+		if (varmodel[i]) printf(" \x1b[34m%c\x1b[0m │", 97 + i);
+		i++;
+	}
+	printf(" \x1b[34m");
+	int length = 0;
+	display_infix(tree, &length);
+	printf("\x1b[0m\n");
+
+	i = 0;
+	while (i++ < vars) {
+		printf("───┼");
+	}
+	i = 0;
+	while (i++ < length + 2) printf("─");
+
+	printf("\n");
+	fflush(stdout);
+}
+
+void start_process(tNode tree, int vars, char * varmodel) {
+	int count = 1 << vars;
+	int i = 0;
+
+	print_header(tree, vars, varmodel);
+
+	while (i < count) {
+		char * buffer = create_model(varmodel, i);
+
+		int j = 0;
+		while (j < VARIABLES_COUNT) {
+			if (varmodel[j]) {
+				if (buffer[j]) printf(" \x1b[32m%d\x1b[0m │", 1);
+				else printf(" \x1b[31m%d\x1b[0m │", 0);
+			}
+			j++;
+		}
+
+		int result = evaluate_induction(tree, buffer);
+		if (result) printf(" \x1b[32m1\x1b[0m\n");
+		else printf(" \x1b[31m0\x1b[0m\n");
+
+		i++;
+
+		free(buffer);
+	}
+}
+
+void remove_double_char(char * expression, char target, int size, int * new_size) {
+	if (size < 2) {
+		*new_size = size;
+		return;
+	}
+
+	int i = 0;
+	while (i < size - 1) {
+		if (expression[i] == target && expression[i + 1] == target) {
+			int a = 0;
+			while (a < 2) {
+				int j = i;
+				while (j < size - 1) {
+					char n = expression[j + 1];
+					expression[j] = n;
+					j++;
+				}
+			
+				size--;
+				a++;
+			}
+		}
+		i++;
+	}
+
+	*new_size = size;
+}
 
 int main() {
-    printf("Entrez une assertion logique : \x1b[94m");
-    fflush(stdout);
+	printf("Welcome to \x1b[94mGreensky's assert checker\x1b[0m\n");
 
-    char buffer[1024];
-    if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
-        printf("\x1b[0m");
-        error_message("Erreur de lecture de l'entree.");
-        return 1;
-    }
-    printf("\x1b[0m");
-    buffer[strcspn(buffer, "\n")] = 0;
-    char *input = buffer;
+	char * buffer = malloc(1024);
+	while (1) {
+		valid_expression = 1;
+		printf("Enter expression: ");
+		fflush(stdout);
 
-    int size = (int)strlen(input);
+		if (fgets(buffer, sizeof(char) * 1023, stdin) == NULL) {
+			continue;
+		}
+		char * input = buffer;
+		input[strcspn(buffer, "\n")] = 0;
 
-    int valid_parenthesis = check_parenthesis(input, size);
-    if (!valid_parenthesis) {
-        error_message("Parenthesage incorrect");
-        return 1;
-    }
+		if (strcmp(input, "exit") == 0) {
+			printf("bye\n");
+			free(buffer);
+			return 0;
+		}
 
-    char expression[size];
-    int expressionSize = 0;
+		if (!valid_input(input)) {
+			printf("\x1b[31mYou entered a wrong caracter. Try again\x1b[0m\n");
+			continue;
+		}
 
-    removeSpaces(input, &size, expression, &expressionSize);
+		int ssize = strsize(input);
+		int size;
+		int old = ssize;
+		remove_double_char(input, '!', ssize, &size);
+		while (size != old) {
+			int temp;
+			remove_double_char(input, '!', size, &temp);
+			old = size;
+			size = temp;
+		}
 
-    int varCount = 0;
-    char variables[VARIABLE_COUNT + 1];
-    for (int i = 0; i < VARIABLE_COUNT; i++) {
-        variables[i] = '-';
-    }
+		tNode tree = parse_expression(input, size);
 
-    findVariables(expression, expressionSize, variables, &varCount);
+		if (tree == NULL) continue;
 
-    if (varCount == 0) {
-        error_message("Aucune variable trouvee");
-        return 1;
-    }
+		if (!valid_expression) {
+			printf("\x1b[31mYou entered an invalid expression\x1b[0m\n");
+			destroy_node(&tree);
+			continue;
+		}
 
-    struct Node *tree = &(struct Node){ .left = NULL, .right = NULL, .value = '\0' };
-    build(expression, tree, expressionSize);
+		int found;
+		char * vars = get_used_variables(input, size, &found);
 
-    if (!valid_expresssion) {
-        error_message("Expression non valide");
-        return 1;
-    }
+		if (found == 0) {
+			printf("\x1b[31mImpossible\x1b[31m\n");
+			free(vars);
+			destroy_node(&tree);
+			continue;
+		}
 
-    truth_table(tree, expression, expressionSize, variables, varCount);
-    free_tree(tree);
+		start_process(tree, found, vars);
+		
+		free(vars);
+		destroy_node(&tree);
+	}
 
-    return 0;
+	free(buffer);
 }
