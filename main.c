@@ -187,7 +187,7 @@ char * get_used_variables(char * expression, int size, int * found) {
 	int i = 0;
 	while (i++ < size) {
 		char c = expression[i - 1];
-		if (is_variable(c = expression[i - 1])) {
+		if (is_variable(c = expression[i - 1]) && arr[c - 97] == 0) {
 			arr[c - 97] = 1;
 			(*found)++;
 		}
