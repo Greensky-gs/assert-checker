@@ -49,7 +49,7 @@ Once you have the `main.exe` file executable, you can use it by launching the sc
 | Operator | Symbol | Syntax |
 |:--------:|:------:|:------:|
 | Logical **and** | `&` | `X&Y` |
-| Logical **or** | `\|` | `X|Y` |
+| Logical **or** | `\|` | `X\|Y` |
 | Logical **not** | `!` | `!X` |
 | Logical **implication** | `-` | `X-Y` |
 | Group of expression | `(` and `)` | `(X)` |

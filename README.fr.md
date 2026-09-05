@@ -47,7 +47,7 @@ Une fois que le fichier `main.exe` est crée, vous pouvez l'utiliser en exécuta
 | Opérateur | Symbole | Syntaxe |
 |:---------:|:-------:|:-------:|
 | **Et** logique | `&` | `X&Y` |
-| **Ou** logique | `\|` | `X|Y` |
+| **Ou** logique | `\|` | `X\|Y` |
 | **Non** logique | `!` | `!X` |
 | **Implication** | `-` | `X-Y` |
 | Groupe d'assertion | `(` et `)` | `(X)` |
