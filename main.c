@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <signal.h>
 #include <string.h>
 
 #define VARIABLES_COUNT 26
@@ -102,7 +101,6 @@ tNode parse_primary(char * expression, int * pos) {
 
 tNode parse_not(char * expression, int * pos) {
 	while (expression[*pos] == '!') {
-		char op = expression[*pos];
 		(*pos)++;
 		tNode operand = parse_primary(expression, pos);
 		tNode node = create_node('!');
@@ -216,6 +214,7 @@ int evaluate_induction(tNode tree, char * model) {
 			return evaluate_induction(tree->right, model);
 		}
 	}
+	return 0; // Should never reach this
 }
 
 char * create_model(char * variables, int base) {
