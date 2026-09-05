@@ -4,6 +4,8 @@ This is a simple assertion checker written in C.
 
 ## Installation
 
+> This is the english version of the documentation. Go to [README.fr.md](./README.fr.md) to get the french version)
+
 Follow the installation steps for your platform :
 
 - [Linux](#linux)
@@ -31,6 +33,8 @@ winget install -e --id Git.Git
 2. Get source code (using git) : `git clone https://git.greensky.tf/Greensky/assert-checker && cd assert-checker`
 3. Compile the code to an executable : `make`
 4. You can now use the `main.exe` file, by following the [usage instructions](#usage)
+
+> Use the above commands in a terminal (windows + R, type `cmd` and enter)
 
 ## Usage
 
@@ -73,4 +77,4 @@ Since it is written in native C, it is very fast anyway.
 
 ## Contributors
 
-- [ @Greensky-gs ](https://github.com/Greensky-gs)
+- [ @Greensky-gs ](https://git.greensky.tf/Greensky)
