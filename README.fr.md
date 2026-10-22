@@ -43,6 +43,13 @@ Une fois que le fichier `main.uwu` est crée, vous pouvez l'utiliser en exécuta
 - Opérateurs
 - Parenthèses, qui créent des groupes
 
+### Options
+
+Vous pouvez lancer le programme avec des options, par exemple :
+- `-o [nom de fichier]` : Écrit la sortie de l'évaluateur dans un fichier
+
+> Utiliser `-h` affichera la page d'aide
+
 ### Liste d'opérateurs
 
 | Opérateur | Symbole | Syntaxe |

@@ -45,6 +45,13 @@ Once you have the `main.uwu` file executable, you can use it by launching the sc
 - Operators
 - Parenthesis, that create groups
 
+### Options
+
+You can launch the program with options, such as :
+- `-o [file name]` : outputs the results in a file, for example if you want to analyse them afterwards
+
+> Using `-h` will display the help page
+
 ### Operators list
 
 | Operator | Symbol | Syntax |
