@@ -1,3 +1,7 @@
+#include "parsers/args.h"
+
+#include <fcntl.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -232,33 +236,60 @@ char * create_model(char * variables, int base) {
 	return modelisation;
 }
 
-void print_header(tNode tree, int vars, char * varmodel) {
+#define GET_PRINT_STATEMENT(_1, _2, _3, _4, _5, NAME, ...) NAME
+#define PRINT_STATEMENT(...) GET_PRINT_STATEMENT(__VA_ARGS__, PRINT_STATEMENT_ARGS, PRINT_STATEMENT_NOARGS)(__VA_ARGS__)
+#define PRINT_STATEMENT_ARGS(fd, pre_col, buf, post_col, args) { \
+  printf(pre_col buf post_col, args); \
+  if (fd != 0) {\
+    char buffer[BUFSIZ] = {0}; \
+    snprintf(buffer, BUFSIZ - 1, buf, args); \
+    ssize_t s = strlen(buf); \
+    write(fd, buffer, s); \
+  }\
+}
+#define PRINT_STATEMENT_NOARGS(fd, pre_col, buf, post_col) {\
+  printf(pre_col buf post_col); \
+  if (fd != 0) {\
+    ssize_t s = strlen(buf); \
+    write(fd, buf, s); \
+  } \
+}
+
+void display_infix_with_fd(tNode node, int * count, int fd) {
+	if (node->left != NULL) display_infix_with_fd(node->left, count, fd);
+	PRINT_STATEMENT(fd, "", "%c", "", node->value);
+	if (count != NULL) (*count)++;
+	if (node->right != NULL) display_infix_with_fd(node->right, count, fd);
+}
+void print_header(tNode tree, int vars, char * varmodel, int fd) {
 	int i = 0;
 	while (i < VARIABLES_COUNT) {
-		if (varmodel[i]) printf(" \x1b[34m%c\x1b[0m │", 97 + i);
+		if (varmodel[i]) {
+      PRINT_STATEMENT(fd, "\x1b[34m", " %c", "\x1b[0m", 97 + i);
+      PRINT_STATEMENT(fd, "", " │", "");
+    }
 		i++;
 	}
-	printf(" \x1b[34m");
+
+  PRINT_STATEMENT(fd, "", " ", "\x1b[34m");
 	int length = 0;
-	display_infix(tree, &length);
-	printf("\x1b[0m\n");
+	display_infix_with_fd(tree, &length, fd);
+  PRINT_STATEMENT(fd, "\x1b[0m", "\n", "");
 
 	i = 0;
-	while (i++ < vars) {
-		printf("───┼");
-	}
+	while (i++ < vars) PRINT_STATEMENT(fd, "", "───┼", "");
 	i = 0;
-	while (i++ < length + 2) printf("─");
+	while (i++ < length + 2) PRINT_STATEMENT(fd, "", "─", "");
 
-	printf("\n");
+  PRINT_STATEMENT(fd, "", "\n", "");
 	fflush(stdout);
 }
 
-void start_process(tNode tree, int vars, char * varmodel) {
+void start_process(tNode tree, int vars, char * varmodel, int fd) {
 	int count = 1 << vars;
 	int i = 0;
 
-	print_header(tree, vars, varmodel);
+	print_header(tree, vars, varmodel, fd);
 
 	while (i < count) {
 		char * buffer = create_model(varmodel, i);
@@ -266,21 +297,27 @@ void start_process(tNode tree, int vars, char * varmodel) {
 		int j = 0;
 		while (j < VARIABLES_COUNT) {
 			if (varmodel[j]) {
-				if (buffer[j]) printf(" \x1b[32m%d\x1b[0m │", 1);
-				else printf(" \x1b[31m%d\x1b[0m │", 0);
+				if (buffer[j]) PRINT_STATEMENT(fd, "\x1b[32m", " 1", "\x1b[0m")
+				else PRINT_STATEMENT(fd, "\x1b[31m", " 0", "\x1b[0m");
+
+        PRINT_STATEMENT(fd, "", " │", "");
 			}
 			j++;
 		}
 
 		int result = evaluate_induction(tree, buffer);
-		if (result) printf(" \x1b[32m1\x1b[0m\n");
-		else printf(" \x1b[31m0\x1b[0m\n");
+    if (result) PRINT_STATEMENT(fd, "\x1b[32m", " 1\n", "\x1b[0m")
+    else PRINT_STATEMENT(fd, "\x1b[31m", " 0\n", "\x1b[0m");
 
 		i++;
 
 		free(buffer);
 	}
 }
+#undef PRINT_STATEMENT
+#undef PRINT_STATEMENT_ARGS
+#undef PRINT_STATEMENT_NOARGS
+#undef GET_PRINT_STATEMENT
 
 void remove_double_char(char * expression, char target, int size, int * new_size) {
 	if (size < 2) {
@@ -310,8 +347,52 @@ void remove_double_char(char * expression, char target, int size, int * new_size
 	*new_size = size;
 }
 
-int main() {
+static void help_page(struct arg_input args[], int size, char * bin_name) {
+	printf("Greensky's assert checker CLI.\n  Basic usage : \x1b[90m%s [OPTIONS]\x1b[0m\n  Options are :\n", bin_name);
+
+	int i = 0;
+	while (i < size) {
+		printf("    \x1b[90m%-19s\x1b[0m : %s. Of type \x1b[91m", args[i].name, args[i].description);
+		switch (args[i].type) {
+			case String:
+				printf("string\x1b[0m");
+				if (args[i].str_result == NULL) printf(", no default value is provided\n");
+				else printf(", default value set to \x1b[33m%s\x1b[0m", args[i].str_result);
+				break;
+			case Int:
+				printf("integer\x1b[0m, default value is set to \x1b[33m%d\x1b[0m\n", args[i].int_res);
+				break;
+			case Presence:
+				printf("toggle\x1b[0m\n");
+				break;
+		}
+		i++;
+	}
+}
+int main(int argc, char * argv[]) {
+  struct arg_input arguments[] = {
+    { "-h", "Displays help page", Presence, 0, 0, NULL },
+    { "-o", "Sends result output to a file as well", String, 0, 0, NULL }
+  };
+  int size = sizeof(arguments) / sizeof(struct arg_input);
+
+  find_all(argc, argv, arguments, size);
+
+  if (arguments[0].found) {
+    help_page(arguments, size, argv[0]);
+    return 0;
+  }
+
 	printf("Welcome to \x1b[94mGreensky's assert checker\x1b[0m\n");
+
+  int out_fd = 0;
+  if (arguments[1].found) {
+    if ((out_fd = open(arguments[1].str_result, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IROTH | S_IRGRP)) == -1) {
+      perror("open");
+      fprintf(stderr, "Impossible to open output file. Continuing without.\n");
+      out_fd = 0;
+    }
+  }
 
 	char * buffer = malloc(1024);
 	while (1) {
@@ -367,7 +448,7 @@ int main() {
 			continue;
 		}
 
-		start_process(tree, found, vars);
+		start_process(tree, found, vars, out_fd);
 		
 		free(vars);
 		destroy_node(&tree);
