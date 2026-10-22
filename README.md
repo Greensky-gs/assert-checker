@@ -18,7 +18,7 @@ MacOS is not listed here, because I never tried it. Please propose changes if yo
 1. Install dependencies, that are : `git`, `gcc` and `make`. For example, on debian-based distributions : `sudo apt install git gcc make`
 2. Get source code (using git) : `git clone https://git.greensky.tf/Greensky/assert-checker && cd assert-checker`
 3. Compile the code to an executable : `make`
-4. You can now use the `main.exe` file, by following the [usage instructions](#usage)
+4. You can now use the `bin/main.uwu` file, by following the [usage instructions](#usage)
 
 > Run the command listed above in a terminal
 
@@ -32,13 +32,14 @@ winget install -e --id Git.Git
 ```
 2. Get source code (using git) : `git clone https://git.greensky.tf/Greensky/assert-checker && cd assert-checker`
 3. Compile the code to an executable : `make`
-4. You can now use the `main.exe` file, by following the [usage instructions](#usage)
+4. Rename binary so windows decides that the file can be executed : `cd bin && ren main.uwu main.exe`
+5. You can now use the `bin/main.exe` file, by following the [usage instructions](#usage)
 
 > Use the above commands in a terminal (windows + R, type `cmd` and enter)
 
 ## Usage
 
-Once you have the `main.exe` file executable, you can use it by launching the script. It will ask you to enter an expression. An expression is composed of :
+Once you have the `main.uwu` file executable, you can use it by launching the script. It will ask you to enter an expression. An expression is composed of :
 
 - Variables, represented by single letters
 - Operators
