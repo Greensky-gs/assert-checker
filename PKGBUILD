@@ -22,5 +22,5 @@ package() {
   cd "$srcdir/$_name"
 
   # Binary
-  install -Dm755 main.uwu "$pkgdir/usr/bin/assert-checker"
+  install -Dm755 bin/main.uwu "$pkgdir/usr/bin/assert-checker"
 }
