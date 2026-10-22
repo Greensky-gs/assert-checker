@@ -9,7 +9,7 @@ Suivez les étapes d'installation selon votre plateforme
 - [Linux](#linux)
 - [Windows](#windows)
 
-MacOS n'est pas listé, c'est parce que je n'ai jamais essayé. Tout changement est le bienvenue, si vous avez essayé l'installation Mac
+MacOS n'est pas listé, c'est parce que je n'ai jamais essayé. Tout changement est le bienvenu, si vous avez essayé l'installation Mac
 
 ### Linux
 
